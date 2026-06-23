@@ -1,0 +1,61 @@
+pipeline:
+  name: PR Build Check
+  identifier: pr_build_check
+  projectIdentifier: test_project_vp
+  orgIdentifier: bootcampjune2026
+  # CODEBASE: when you create this in the UI and pick the Harness Code repo
+  # "pr-health-check-group-6" as the codebase, Harness fills this block for you.
+  properties:
+    ci:
+      codebase:
+        connectorRef: <+input>          # leave as input, or the UI sets it for Harness Code
+        repoName: pr-health-check-group-6
+        build: <+input>
+  stages:
+    - stage:
+        name: Build and Test
+        identifier: build_and_test
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud                  # Harness Cloud hosted runners — no delegate needed
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run Checks
+                  identifier: run_checks
+                  spec:
+                    shell: Sh
+                    command: |
+                      echo "Running PR checks on $(git rev-parse --short HEAD)"
+                      # --- this is where real tests/lint would go ---
+                      # To DEMO a PASSING build, leave as-is (exits 0).
+                      # To DEMO a FAILING build, uncomment the next line:
+                      # exit 1
+                      echo "checks passed"
+              # On failure, ping the PR Health dashboard so it sends a Slack alert
+              # (with the failing checks + AI-fix link). Runs ONLY when the build failed.
+              - step:
+                  type: Run
+                  name: Notify Build Failed
+                  identifier: notify_build_failed
+                  when:
+                    stageStatus: Failure
+                  spec:
+                    shell: Sh
+                    command: |
+                      echo "Notifying dashboard that PR #<+codebase.prNumber> failed"
+                      curl -s -X POST \
+                        "<+pipeline.variables.dashboard_url>/build-failed?pr=<+codebase.prNumber>" \
+                        || echo "could not reach dashboard (is it running / is the URL current?)"
+  variables:
+    - name: dashboard_url
+      type: String
+      description: "Public URL of the PR Health dashboard (e.g. your ngrok https URL)"
+      value: <+input>

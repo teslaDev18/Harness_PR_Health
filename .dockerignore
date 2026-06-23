@@ -1,0 +1,6 @@
+.env
+.git
+__pycache__/
+*.pyc
+report.html
+live_data.json

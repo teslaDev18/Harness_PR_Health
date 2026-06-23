@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import importlib,pr_health; importlib.reload\\(pr_health\\); print\\('compiles OK'\\)\")",
+      "Bash(HARNESS_MAX_PAGES=5 python3 pr_health.py --live)"
+    ]
+  }
+}

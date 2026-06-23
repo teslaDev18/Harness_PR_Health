@@ -1,0 +1,46 @@
+pipeline:
+  name: test-pipeline
+  identifier: testpipeline
+  projectIdentifier: test_project_vp
+  orgIdentifier: bootcampjune2026
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        repoName: pr-health-check-group-6
+        build: <+input>
+  stages:
+    - stage:
+        name: build
+        identifier: build
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run Checks
+                  identifier: run_checks
+                  spec:
+                    connectorRef: account.dockerHub
+                    image: alpine:latest
+                    shell: Sh
+                    command: |-
+                      n=$(head -c 1 /dev/urandom | cksum | cut -d' ' -f1)
+                      echo "roll=$n"
+                      if [ $((n % 2)) -eq 0 ]; then
+                        echo "ok - passed this time"
+                      else
+                        echo "Temporary failure: connection refused"
+                        exit 1
+                      fi
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: account.btteamcluster
+              namespace: harness-delegate-ng
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux

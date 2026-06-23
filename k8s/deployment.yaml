@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pr-health
+---
+# Holds the Harness API token so the pod can read live PR data.
+# In Harness CD, populate this from a Harness secret (see DEPLOY.md), e.g.:
+#   HARNESS_API_KEY: <+secret.getValue("harness_pat")>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pr-health-secrets
+  namespace: pr-health
+type: Opaque
+stringData:
+  HARNESS_API_KEY: "REPLACE_OR_INJECT_VIA_HARNESS_SECRET"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pr-health
+  namespace: pr-health
+  labels: { app: pr-health }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: pr-health }
+  template:
+    metadata:
+      labels: { app: pr-health }
+    spec:
+      containers:
+        - name: pr-health
+          # Harness substitutes the image it just built/pushed.
+          image: <+artifact.image>
+          ports:
+            - containerPort: 8080
+          env:
+            - name: HARNESS_BASE_URL
+              value: "https://harness0.harness.io"
+            - name: HARNESS_ACCOUNT_ID
+              value: "l7B_kbSEQD2wjrM7PShm5w"
+            - name: HARNESS_REPO
+              value: "harness-pl-infra"
+            - name: HARNESS_MAX_PAGES
+              value: "1"
+            - name: HARNESS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pr-health-secrets
+                  key: HARNESS_API_KEY
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pr-health
+  namespace: pr-health
+spec:
+  type: LoadBalancer        # gives you an external URL; use ClusterIP + Ingress if preferred
+  selector: { app: pr-health }
+  ports:
+    - port: 80
+      targetPort: 8080
